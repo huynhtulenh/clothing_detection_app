@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phát hiện & Phân đoạn Trang phục (Nâng cao)</title>
+    <style>
+        /* ... (CSS code for styling - same as previous version) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 1200px;
+            width: 100%;
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            background: #f9f9f9;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .upload-section:hover {
+            background: #f0f0f0;
+            border-color: #764ba2;
+        }
+
+        .upload-section.dragover {
+            background: #e8e8ff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            text-align: center;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-text strong {
+            color: #333;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-upload {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-upload:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-upload:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-clear {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-clear:hover:not(:disabled) {
+            background: #d0d0d0;
+        }
+
+        .btn-clear:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .result-section {
+            display: none;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .result-section.active {
+            display: grid;
+        }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .preview-item {
+            text-align: center;
+        }
+
+        .preview-item h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preview-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error {
+            display: none;
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .success {
+            display: none;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .success.active {
+            display: block;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #1565c0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .data-panel {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .data-panel h3 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .json-viewer {
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        .json-viewer .key { color: #881391; }
+        .json-viewer .string { color: #008000; }
+        .json-viewer .number { color: #1c00cf; }
+        .json-viewer .boolean { color: #0000ff; }
+        .json-viewer .null { color: #ff0000; }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .result-section {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-container {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Phát hiện & Phân đoạn Trang phục</h1>
+        <p class="subtitle">Sử dụng YOLOv8 Segmentation để vẽ viền (polygon) và trích xuất tọa độ chi tiết</p>
+
+        <div class="info-box">
+            <strong>ℹ️ Hướng dẫn:</strong> Ứng dụng này sử dụng mô hình **YOLOv8 Segmentation DeepFashion2** để phát hiện và vẽ viền (polygon) chính xác quanh các loại trang phục chi tiết như áo, quần, váy.
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+        <div class="success" id="successMessage"></div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">
+                <strong>Chọn ảnh hoặc kéo thả vào đây</strong>
+            </div>
+            <div class="upload-hint">Hỗ trợ: JPG, PNG, GIF (tối đa 10MB)</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-upload" id="uploadBtn">Chọn Ảnh</button>
+            <button class="btn-clear" id="clearBtn" disabled>Xóa</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">Đang xử lý ảnh và trích xuất viền polygon, vui lòng chờ...</div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="preview-container">
+                <div class="preview-item">
+                    <h3>Ảnh gốc</h3>
+                    <img id="originalImage" src="" alt="Ảnh gốc">
+                </div>
+                <div class="preview-item">
+                    <h3>Ảnh đã xử lý (Vẽ Polygon)</h3>
+                    <img id="processedImage" src="" alt="Ảnh đã xử lý">
+                </div>
+            </div>
+            <div class="data-panel">
+                <h3>Dữ liệu Tọa độ Viền (JSON)</h3>
+                <pre class="json-viewer" id="jsonOutput">Chọn một ảnh để bắt đầu xử lý...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cấu hình
+        const API_URL = '/upload'; // Sử dụng đường dẫn tương đối vì Frontend và Backend cùng host
+        
+        // DOM Elements
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const originalImage = document.getElementById('originalImage');
+        const processedImage = document.getElementById('processedImage');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const jsonOutput = document.getElementById('jsonOutput');
+
+        let selectedFile = null;
+
+        // Event Listeners
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        clearBtn.addEventListener('click', clearAll);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and Drop
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: fileInput });
+            }
+        });
+
+        // Xử lý chọn file
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showError('Vui lòng chọn một file ảnh hợp lệ (JPG, PNG, GIF, v.v.)');
+                return;
+            }
+
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showError('Kích thước file quá lớn. Vui lòng chọn file nhỏ hơn 10MB.');
+                return;
+            }
+
+            selectedFile = file;
+            clearError();
+            clearSuccess();
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage.src = e.target.result;
+                resultSection.classList.add('active');
+                clearBtn.disabled = false;
+                uploadImage();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Upload ảnh lên Backend
+        async function uploadImage() {
+            if (!selectedFile) return;
+
+            loading.classList.add('active');
+            clearError();
+            clearSuccess();
+            jsonOutput.textContent = 'Đang chờ phản hồi từ Backend...';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                // LƯU Ý: Thay thế URL API bằng địa chỉ thực tế của bạn
+                const BACKEND_URL = 'http://localhost:8000/upload'; // Thay thế bằng địa chỉ Backend thực tế
+                
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    body: formData
+                } );
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'Lỗi không xác định từ Backend');
+                }
+
+                processedImage.src = `data:image/jpeg;base64,${result.processed_image_base64}`;
+
+                const jsonString = JSON.stringify(result.segmentation_results, null, 2);
+                jsonOutput.innerHTML = syntaxHighlight(jsonString);
+
+                showSuccess(`✓ ${result.message}`);
+            } catch (error) {
+                console.error('Lỗi:', error);
+                showError(`Lỗi xử lý ảnh: ${error.message}. Vui lòng kiểm tra console để biết chi tiết.`);
+                resultSection.classList.remove('active');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        // Xóa tất cả
+        function clearAll() {
+            fileInput.value = '';
+            selectedFile = null;
+            originalImage.src = '';
+            processedImage.src = '';
+            resultSection.classList.remove('active');
+            clearBtn.disabled = true;
+            clearError();
+            clearSuccess();
+            jsonOutput.textContent = 'Chọn một ảnh để bắt đầu xử lý...';
+        }
+
+        // Hiển thị lỗi
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('active');
+        }
+
+        // Ẩn lỗi
+        function clearError() {
+            errorMessage.classList.remove('active');
+            errorMessage.textContent = '';
+        }
+
+        // Hiển thị thành công
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.classList.add('active');
+        }
+
+        // Ẩn thành công
+        function clearSuccess() {
+            successMessage.classList.remove('active');
+            successMessage.textContent = '';
+        }
+
+        // Hàm tô màu cú pháp JSON
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'key';
+                    } else {
+                        cls = 'string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+    </script>
+</body>
+</html>
