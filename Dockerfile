@@ -1,7 +1,6 @@
 FROM python:3.11-slim
 
 # Cài đặt các dependencies hệ thống cần thiết cho OpenCV
-# Đã thay thế libgl1-mesa-glx bằng libgl1 và thêm libglib2.0-0
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -17,6 +16,9 @@ WORKDIR /app
 # Sao chép file requirements và cài đặt thư viện Python
 COPY backend/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
+
+# BƯỚC MỚI: Tạo thư mục backend trước khi tải file mô hình
+RUN mkdir -p backend
 
 # Tải mô hình DeepFashion2 (hoặc sao chép nếu đã tải)
 RUN wget -O backend/deepfashion2_yolov8s-seg.pt https://huggingface.co/Bingsu/adetailer/resolve/main/deepfashion2_yolov8s-seg.pt
