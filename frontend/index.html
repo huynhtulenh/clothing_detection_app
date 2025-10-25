@@ -309,7 +309,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎨 Phát hiện & Phân đoạn Trang phục</h1>
+        <h1>🎨 Phát hiện & Phân đoạn Trang phục (Nâng cao)</h1>
         <p class="subtitle">Sử dụng YOLOv8 Segmentation để vẽ viền (polygon) và trích xuất tọa độ chi tiết</p>
 
         <div class="info-box">
@@ -358,7 +358,8 @@
 
     <script>
         // Cấu hình
-        const API_URL = '/upload'; // Sử dụng đường dẫn tương đối vì Frontend và Backend cùng host
+        // Đã thay đổi để sử dụng đường dẫn tương đối, phù hợp với môi trường deploy
+        const API_URL = '/upload'; 
         
         // DOM Elements
         const uploadSection = document.getElementById('uploadSection');
@@ -445,13 +446,11 @@
                 const formData = new FormData();
                 formData.append('file', selectedFile);
 
-                // LƯU Ý: Thay thế URL API bằng địa chỉ thực tế của bạn
-                const BACKEND_URL = 'http://localhost:8000/upload'; // Thay thế bằng địa chỉ Backend thực tế
-                
-                const response = await fetch(BACKEND_URL, {
+                // Sử dụng API_URL tương đối (đã định nghĩa ở trên là '/upload')
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     body: formData
-                } );
+                });
 
                 if (!response.ok) {
                     const errorData = await response.json();

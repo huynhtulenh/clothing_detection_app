@@ -1,23 +1,25 @@
 import io
-import cv2 # OpenCV lib để đọc, vẽ trên ảnh
+import cv2
 import numpy as np
-import json # Dùng để chuyển đổi dữ liệu giữa Python và định dạng JSON
-import base64 # Dùng để mã hoá ảnh hoặc dữ liệu nhị phân thành chuỗi ký tự (text) — dễ truyền qua API hoặc lưu trong JSON
-from fastapi import FastAPI, File, UploadFile, HTTPException # API server
-from fastapi.responses import JSONResponse
+import json
+import base64
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from ultralytics import YOLO # Trong project DeepFashion2, YOLO sẽ phát hiện từng loại quần áo... trên ảnh
+from ultralytics import YOLO
 from typing import List, Dict, Any
+from starlette.staticfiles import StaticFiles
+from pathlib import Path
 
-# 1. Khởi tạo FastAPI app
+# 1. Khởi tạo FastAPI App
 app = FastAPI(
-    title="Clothing Segmentation API",
-    description="API nhận ảnh, phát hiện và phân đoạn trang phục chi tiết(quần, áo,..) bằng mô hình DeepFashion2.",
-    version="1.0.0"
+    title="Clothing Segmentation API (DeepFashion2 - Final)",
+    description="API nhận ảnh, phát hiện và phân đoạn trang phục chi tiết (quần, áo, giày, váy) bằng mô hình DeepFashion2.",
+    version="2.1.0"
 )
 
 # Cấu hình CORS
-origins = ["*"] # Cho phép tất cả các nguồn truy cập API
+origins = ["*"] # Cho phép tất cả các nguồn
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -26,50 +28,56 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Định nghĩa các lớp trang phục/phụ kiện và màu sắc tương ứng
-# Các lớp này dựa trên mô hình DeepFashion2
+# 2. Định nghĩa các lớp trang phục/phụ kiện và màu sắc tương ứng (BGR)
 CLOTHING_COLOR_MAP = {
-    # Các lớp Áo
-    "short_sleeved_shirt": (255, 0, 0), # Áo sơ mi ngắn tay - Màu đỏ
-    "long_sleeved_shirt": (0, 255, 0),  # Áo sơ mi dài tay - Màu xanh lá
-    "short_sleeved_outwear": (0,165,255), # Áo khoác ngắn tay - Màu cam
-    "long_sleeved_outwear": (255,0,255),  # Áo khoác dài tay - Màu tím
-    "vest": (0,255,255),                 # Áo vest - Màu vàng
-    "sling": (128,0,128),                # Áo hai dây/Áo yếm - Màu tím đậm
-    # Các lớp Quần/Váy
-    "shorts": (0,0,255),                 # Quần ngắn - Màu xanh dương
-    "trousers": (255,255,0),             # Quần dài - Màu vàng
-    "skirt": (0,128,255),                # Váy - Màu xanh da trời
-    "short_sleeved_dress": (128,128,0),  # Váy ngắn tay - Màu xanh rêu
-    "long_sleeved_dress": (128,0,0),     # Váy dài tay - Màu nâu đỏ
-    "vest_dress": (0,128,128),           # Váy vest - Màu xanh lục đậm
-    "sling_dress": (128,128,128),        # Váy hai dây - Màu xám
+    "short_sleeved_shirt": (255, 0, 0),      # Xanh Dương - Áo cộc tay
+    "long_sleeved_shirt": (0, 255, 0),       # Xanh Lá - Áo dài tay
+    "short_sleeved_outwear": (0, 165, 255),  # Cam - Áo khoác cộc tay
+    "long_sleeved_outwear": (255, 0, 255),   # Tím - Áo khoác dài tay
+    "vest": (0, 255, 255),                   # Xanh Lục Lam - Áo vest/Gile
+    "sling": (128, 0, 128),                  # Tím đậm - Áo hai dây/Áo yếm
+    "shorts": (0, 0, 255),                   # Đỏ - Quần ngắn
+    "trousers": (255, 255, 0),               # Vàng - Quần dài
+    "skirt": (0, 128, 255),                  # Cam đậm - Chân váy
+    "short_sleeved_dress": (128, 128, 0),    # Xanh xám - Váy cộc tay
+    "long_sleeved_dress": (128, 0, 0),       # Xanh đậm - Váy dài tay
+    "vest_dress": (0, 128, 128),             # Xanh lục lam đậm - Váy vest
+    "sling_dress": (128, 128, 128),          # Xám - Váy hai dây
 }
 
 # 3. Load mô hình YOLOv8 Segmentation DeepFashion2
-MODEL_PATH = "deepfashion2_yolov8s-seg.pt" # Đường dẫn đến file mô hình đã huấn luyện
+# LƯU Ý: Khi deploy, file mô hình sẽ nằm trong thư mục /app/backend/
+MODEL_PATH = Path("backend/deepfashion2_yolov8s-seg.pt")
 try:
-    model = YOLO(MODEL_PATH)
+    model = YOLO(str(MODEL_PATH))
     print(f"Mô hình YOLOv8s-seg DeepFashion2 đã được tải thành công từ {MODEL_PATH}.")
 except Exception as e:
     print(f"Lỗi khi tải mô hình YOLOv8s-seg DeepFashion2: {e}")
-    raise RuntimeError(f"Không thể tải mô hình: {e}")
+    # Nếu mô hình không tồn tại (chưa được tải trong Dockerfile), sẽ dùng mô hình mặc định
+    if not MODEL_PATH.exists():
+        print("Cảnh báo: Không tìm thấy mô hình DeepFashion2. Đang sử dụng YOLOv8n-seg mặc định.")
+        model = YOLO("yolov8n-seg.pt") # Fallback to default model
+    else:
+        raise RuntimeError(f"Không thể tải mô hình: {e}")
+
 # Lấy ID của các lớp cần lọc
 target_class_names = list(CLOTHING_COLOR_MAP.keys())
 target_class_ids = [k for k, v in model.names.items() if v in target_class_names]
 
+
 # 4. Hàm vẽ polygon lên ảnh
 def draw_segmentation(img: np.ndarray, results: Any, target_class_names: List[str], color_map: Dict[str, tuple]) -> tuple[np.ndarray, List[Dict[str, Any]]]:
     """Vẽ polygon lên ảnh với màu sắc tùy chỉnh và chỉ giữ lại các lớp trang phục."""
+    
     draw_img = img.copy()
     h, w, _ = draw_img.shape
     
     masks = results[0].masks
     boxes = results[0].boxes
-
+    
     if masks is None:
         return draw_img, []
-    
+
     segmentation_data: List[Dict[str, Any]] = []
 
     for i, mask_xy in enumerate(masks.xyn):
@@ -114,11 +122,8 @@ def draw_segmentation(img: np.ndarray, results: Any, target_class_names: List[st
 
     return draw_img, segmentation_data
 
-# 5. Định nghĩa Endpoint
-@app.get("/")
-async def root():
-    return {"message": "Clothing Segmentation API is running. Use /upload to submit images."}
 
+# 5. Định nghĩa Endpoint
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
     """
@@ -158,3 +163,21 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         print(f"Lỗi xử lý: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý ảnh: {e}")
+
+# 6. Phục vụ Frontend
+# Đảm bảo thư mục frontend tồn tại và có file index.html
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend_static")
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """Phục vụ file index.html từ thư mục frontend."""
+    try:
+        with open("frontend/index.html", "r") as f:
+            # Thay thế URL API trong index.html để sử dụng đường dẫn tương đối /upload
+            content = f.read()
+            # Tìm và thay thế URL API trong JavaScript
+            # Vì trong môi trường deploy, FE và BE chạy trên cùng 1 host, ta chỉ cần dùng /upload
+            content = content.replace("const BACKEND_URL = 'http://localhost:8000/upload';", "const BACKEND_URL = '/upload';")
+            return content
+    except FileNotFoundError:
+        return HTMLResponse("<h1>Lỗi: Không tìm thấy file Frontend (index.html).</h1>", status_code=404)
