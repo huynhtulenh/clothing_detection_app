@@ -1,12 +1,7 @@
 FROM python:3.11-slim
 
 # Cài đặt các dependencies hệ thống cần thiết cho OpenCV
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    wget \
+RUN apt-get update && apt-get install -y libgl1-mesa-glx libsm6 libxext6 libxrender1 wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Thiết lập thư mục làm việc
